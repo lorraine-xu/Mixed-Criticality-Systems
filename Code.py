@@ -4,7 +4,7 @@ class Task(object):
     """
     Create a class for each task to set up and calculate different parameters of the task.
     """
-    def __init__(self, priority, criticality, period, deadline, low_mode_exec_time, high_mode_exec_time):
+    def __init__(self, task_number, criticality, period, deadline, low_mode_exec_time, high_mode_exec_time):
         if deadline is None:
             # implicit deadline by default
             deadline = period
@@ -56,9 +56,10 @@ def implement_AMC_rtb():
         # if the set is nonempty:
             # r_i_lo = low_mode_exec_time of t_i
             # generate the set of all tasks with priority higher than that of t_i, hp_i
-            # for each task t_j in hp_i:
-                # r_i_lo += ceiling(r_i_lo / period of t_j) * low_mode_exec_time of t_j
-            # solve for r_i_lo
+            # while loop: stop when exceeding the deadline / both sides are equal
+                # for each task t_j in hp_i:
+                    # previous_r_i_lo = r_i_lo
+                    # r_i_lo += ceiling(r_i_lo / period of t_j) * low_mode_exec_time of t_j
         # for each LO-critical task t_k in hpl_i:
             # r_i_star += ceiling(r_i_lo / period of t_k) * low_mode_exec_time of t_k
         # solve for r_i_star
@@ -99,6 +100,7 @@ def conduct_acceptance_ratio_experiment():
             t2 = Task(2, "LO", 20, NONE, 9, 3)
             t3 = Task(3, "LO", 35, NONE, 7, 4)
             t4 = Task(4, "HI", 49, NONE, 12, 10)
+            # might put task priority assignment here: now we are using deadline monotonic
             # partition the task set with method 1: partition_task_set_method_1()
             # partition the task set with method 2: partition_task_set_method_2()
             # for each core:
