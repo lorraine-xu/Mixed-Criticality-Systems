@@ -1,21 +1,25 @@
 """Schedulability test implementation and partitioning algorithm comparisons."""
 
+import math
+
 class Task(object):
     """
     Create a class for each task to set up and calculate different parameters of the task.
     """
-    def __init__(self, task_number, criticality, period, deadline, low_mode_exec_time, high_mode_exec_time):
+    def __init__(self, criticality, period, deadline, hi_exec_time, lo_exec_time):
         if deadline is None:
             # implicit deadline by default
             deadline = period
-        self.priority = priority
         self.criticality = criticality
+        self.period = period
         self.deadline = deadline
-        self.low_mode_exec_time  = low_mode_exec_time
-        self.high_mode_exec_time = high_mode_exec_time
-
-    # build more functions on calculating utilization, density, etc.
-
+        self.hi_exec_time  = hi_exec_time
+        self.lo_exec_time = lo_exec_time
+        if (criticality == "HI"):
+            self.utility = hi_exec_time / period
+        else:
+            self.utility = lo_exec_time / period
+            
 def select_partitioning_heuristics():
     """
     Select the four most successful heuristics to be compared in this study.
@@ -39,7 +43,7 @@ def generate_task_set():
     Output: a set of utilization values
     """
 
-def implement_AMC_rtb():
+def implement_AMC_rtb(tasks, verbose = False):
     """
     Use AMC_rtb as the schedulability test to evaluate the feasibility of an allocation
     before assigning any task to a processor.
@@ -47,26 +51,80 @@ def implement_AMC_rtb():
     Parameters: task set partitioned to a processor
     Output: a boolean value of whether or not the allocation is successful
     """
-    # for each task t_i in the task set:
-        # response time during criticality change (r_i_star) = high_mode_exec_time of t_i
-        # generate the set of HI-critical tasks with priority higher than or equal to t_i, hph_i
-        # for each HI-critical task t_j in hph_i:
-            # r_i_star += ceiling(r_i_star / period of t_j) * high_mode_exec_time of t_j
-        # generate the set of LO-critical tasks with priority higher than or equal to t_i, hpl_i
-        # if the set is nonempty:
-            # r_i_lo = low_mode_exec_time of t_i
-            # generate the set of all tasks with priority higher than that of t_i, hp_i
-            # while loop: stop when exceeding the deadline / both sides are equal
-                # for each task t_j in hp_i:
-                    # previous_r_i_lo = r_i_lo
-                    # r_i_lo += ceiling(r_i_lo / period of t_j) * low_mode_exec_time of t_j
-        # for each LO-critical task t_k in hpl_i:
-            # r_i_star += ceiling(r_i_lo / period of t_k) * low_mode_exec_time of t_k
-        # solve for r_i_star
-        # if r_i_star > deadline of t_i:
-            # return false (unschedulable on the processor)
-    # return true
+    # create a list of r_lo values to be used in calculating r_star
+    r_lo_values = []
+    # check schedulability for each task under low mode
+    for i in range(len(tasks)):
+        # calculate r_lo values
+        r_lo = tasks[i].lo_exec_time
+        prev_r_lo = 0
+        if (verbose == True):
+            print("task index =", i + 1)
+        while (prev_r_lo != r_lo):
+            prev_r_lo = r_lo
+            r_lo = tasks[i].lo_exec_time
+        # generate the set of all tasks with priority higher than that of t_i, hp_i
+        # for each task t_j in hp_i:
+            for j in range(i):
+                r_lo += math.ceil(prev_r_lo / tasks[j].period) * tasks[j].lo_exec_time
+            if (r_lo > tasks[i].deadline):
+                return False
+            
+        # store r_lo values for future use
+        r_lo_values.append(r_lo)
+        if (verbose == True):
+            print("r_lo value = ", r_lo)
 
+    # check schedulability for each HI-criticality task during mode transition
+    for i in range(len(tasks)):
+        # only make the calculation for HI-criticality tasks
+        if (tasks[i].criticality == "HI"):
+            # calculate r_star (response time during criticality change) values
+            r_star = tasks[i].hi_exec_time
+            prev_r_star = 0
+            if (verbose == True):
+                print("task index =", i + 1)
+            while (prev_r_star != r_star):
+                prev_r_star = r_star
+                r_star = tasks[i].hi_exec_time
+                for j in range(i):
+                    # accumulate a HI-criticality task
+                    if (tasks[j].criticality == "HI"):
+                        r_star += math.ceil(prev_r_star / tasks[j].period) * tasks[j].hi_exec_time
+                    # accumulate a LO-criticality task
+                    else:
+                        r_star += math.ceil(r_lo_values[i] / tasks[j].period) * tasks[j].lo_exec_time
+                    if (r_star > tasks[i].deadline):
+                        return False
+            if (verbose == True):
+                print("r_star value = ", r_star)
+                        
+    # check schedulability for each HI-criticality task under high mode
+    for i in range(len(tasks)):
+        # only make the calculation for HI-criticality tasks
+        if (tasks[i].criticality == "HI"):
+            # calculate r_lo values
+            r_hi = tasks[i].hi_exec_time
+            prev_r_hi = 0
+            if (verbose == True):
+                print("task index =", i + 1)
+            # generate the set of all HI-criticality tasks with priority higher than that of t_i, hph_i
+            # for each task t_j in hph_i:
+            while (prev_r_hi != r_hi):
+                prev_r_hi = r_hi
+                r_hi = tasks[i].hi_exec_time
+                for j in range(i):
+                    # accumulate a HI-criticality task
+                    if (tasks[j].criticality == "HI"):
+                        r_hi += math.ceil(prev_r_hi / tasks[j].period) * tasks[j].hi_exec_time
+                    if (r_hi > tasks[i].deadline):
+                        return False
+            if (verbose == True):
+                print("r_hi value = ", r_hi)
+    
+    # none of the response times pass the deadline
+    return True
+    
 def partition_task_set_method_1():
     """
     Partition the task set with method 1.
@@ -75,6 +133,38 @@ def partition_task_set_method_1():
     Output: tasks on each processor
     """
 
+def implement_first_fit(tasks, n):
+    """
+    Partition the task set with first fit.
+
+    Parameters: a list of sorted tasks, number of processors
+    Output: a list of lists of tasks that are scheduled to each processor
+    """
+    # create a list of empty lists for generating output
+    partitioned_tasks = []
+    # create a dictionary that maps the current sum of utilities on each processor to the processor index
+    current_total_utilities = {}
+    for i in range(n):
+        partitioned_tasks.append([])
+        current_total_utilities[i] = 0
+    # create a boolean to determine if a task has been partitioned
+    partitioned = False
+    # loop through each task
+    for i in range(len(tasks)):
+        j = 0
+        while (partitioned == False):
+            # check if a task fits on a processor
+            if (current_total_utilities[j] + tasks[i].utility <= 1):
+                partitioned == True
+                current_total_utilities[j] += tasks[i].utility
+                partitioned_tasks[j].append(tasks[i])
+            j++
+            # fail to partition a task
+            if (j == n):
+                return None
+     
+    return partitioned_tasks       
+
 def partition_task_set_method_2():
     """
     Partition the task set with method 2.
@@ -82,6 +172,37 @@ def partition_task_set_method_2():
     Parameters: tasks, criticalities, utilization values
     Output: tasks on each processor
     """
+
+def implement_worst_fit():
+    """
+    Partition the task set with worst fit.
+
+    Parameters: a list of sorted tasks, number of processors
+    Output: a list of lists of tasks that are scheduled to each processor
+    """
+    # create a list of empty lists for generating output
+    partitioned_tasks = []
+    # create a dictionary that maps the current sum of utilities on each processor to the processor index
+    current_total_utilities = {}
+    for i in range(n):
+        partitioned_tasks.append([])
+        current_total_utilities[i] = 0
+    # loop through each task
+    for i in range(len(tasks)):
+        # initiate the maximum unused capacity and assigned processor index
+        max_capacity = 0
+        assigned_processor = -1
+        for j in range(n):
+            if (1 - current_total_utilities[j] > max_capacity and current_total_utilities[j] + tasks[i].utility <= 1):
+                max_capacity = 1 - current_total_utilities[j]
+                assigned_processor = j
+        # fail to partition a task
+        if (assigned_processor == -1):
+            return None
+        partitioned_tasks[assigned_processor].append(tasks[i])
+        current_total_utilities[assigned_processor] += tasks[i].utility
+     
+    return partitioned_tasks
 
 def conduct_acceptance_ratio_experiment():
     """
@@ -95,12 +216,7 @@ def conduct_acceptance_ratio_experiment():
     # for each utilization value:
         # for i in range(1000):
             # generate a task set of 80 tasks: generate_task_set()
-            ## start with an example task set
-            t1 = Task(1, "HI", 8, NONE, 4, 2)
-            t2 = Task(2, "LO", 20, NONE, 9, 3)
-            t3 = Task(3, "LO", 35, NONE, 7, 4)
-            t4 = Task(4, "HI", 49, NONE, 12, 10)
-            # might put task priority assignment here: now we are using deadline monotonic
+            # sort the task set by priority with deadline monotonic priority assignment: assign_priority()
             # partition the task set with method 1: partition_task_set_method_1()
             # partition the task set with method 2: partition_task_set_method_2()
             # for each core:
@@ -120,3 +236,8 @@ def make_plots():
     Acceptance_ratio and/or weighted schedulability versus several factors, with
     all four partitioning heuristics in the same figure.
     """
+
+def test_example_set():
+    tasks = [Task("HI", 8, None, 4, 2), Task("LO", 20, None, 9, 3),
+                     Task("LO", 35, None, 7, 4), Task("HI", 49, None, 12, 10)]
+    print(implement_AMC_rtb(tasks, True))
