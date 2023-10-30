@@ -204,6 +204,9 @@ def implement_worst_fit():
      
     return partitioned_tasks
 
+def test_multiprocessor_schedulability(partitioned_tasks):
+    # return if task set passes/fails with each tested method
+
 def conduct_acceptance_ratio_experiment():
     """
     Calculate the acceptance ratio for all tasks as the fraction of task sets deemed 
