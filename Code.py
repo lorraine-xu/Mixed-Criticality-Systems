@@ -160,6 +160,9 @@ def implement_first_fit(tasks, n, verbose = False):
         j = -1
         while (partitioned == False):
             j += 1
+            # fail to partition a task
+            if (j == n):
+                return None
             # check if a task fits on a processor
             if (current_total_utilities[j] + tasks[i].utility <= 1):
                 partitioned == True
@@ -167,9 +170,6 @@ def implement_first_fit(tasks, n, verbose = False):
                 partitioned_tasks[j].append(tasks[i])
                 if (verbose == True):
                     task_numbers[j].append(i + 1)
-            # fail to partition a task
-            if (j == n):
-                return None
 
     if (verbose == True):
         return task_numbers
