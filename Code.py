@@ -133,7 +133,7 @@ def partition_task_set_method_1():
     Output: tasks on each processor
     """
 
-def implement_first_fit(tasks, n):
+def implement_first_fit(tasks, n, verbose = False):
     """
     Partition the task set with first fit.
 
@@ -144,25 +144,35 @@ def implement_first_fit(tasks, n):
     partitioned_tasks = []
     # create a dictionary that maps the current sum of utilities on each processor to the processor index
     current_total_utilities = {}
+    # for testing purpose
+    if (verbose == True):
+        task_numbers = []
     for i in range(n):
         partitioned_tasks.append([])
+        if (verbose == True):
+            task_numbers.append([])
         current_total_utilities[i] = 0
-    # create a boolean to determine if a task has been partitioned
-    partitioned = False
+    
     # loop through each task
     for i in range(len(tasks)):
-        j = 0
+        # create a boolean to determine if a task has been partitioned
+        partitioned = False
+        j = -1
         while (partitioned == False):
+            j += 1
             # check if a task fits on a processor
             if (current_total_utilities[j] + tasks[i].utility <= 1):
                 partitioned == True
                 current_total_utilities[j] += tasks[i].utility
                 partitioned_tasks[j].append(tasks[i])
-            j++
+                if (verbose == True):
+                    task_numbers[j].append(i + 1)
             # fail to partition a task
             if (j == n):
                 return None
-     
+
+    if (verbose == True):
+        return task_numbers
     return partitioned_tasks       
 
 def partition_task_set_method_2():
@@ -173,7 +183,7 @@ def partition_task_set_method_2():
     Output: tasks on each processor
     """
 
-def implement_worst_fit():
+def implement_worst_fit(tasks, n, verbose = False):
     """
     Partition the task set with worst fit.
 
@@ -184,9 +194,15 @@ def implement_worst_fit():
     partitioned_tasks = []
     # create a dictionary that maps the current sum of utilities on each processor to the processor index
     current_total_utilities = {}
+    # for testing purpose
+    if (verbose == True):
+        task_numbers = []
     for i in range(n):
         partitioned_tasks.append([])
+        if (verbose == True):
+            task_numbers.append([])
         current_total_utilities[i] = 0
+        
     # loop through each task
     for i in range(len(tasks)):
         # initiate the maximum unused capacity and assigned processor index
@@ -200,8 +216,12 @@ def implement_worst_fit():
         if (assigned_processor == -1):
             return None
         partitioned_tasks[assigned_processor].append(tasks[i])
+        if (verbose == True):
+            task_numbers[assigned_processor].append(i + 1)
         current_total_utilities[assigned_processor] += tasks[i].utility
-     
+
+    if (verbose == True):
+        return task_numbers
     return partitioned_tasks
 
 def test_multiprocessor_schedulability(partitioned_tasks):
@@ -254,5 +274,5 @@ def test_partitioning_example():
              Task("LO", 35, None, 7, 4), Task("HI", 49, None, 12, 10),
              Task("LO", 70, None, 14, 11), Task("HI", 17, None, 6, 3),
              Task("LO", 56, None, 20, 17), Task("HI", 63, None, 15, 12)]
-    print("First Fit:", implement_first_fit(tasks, 3))
-    print("Worst Fit:", implement_worst_fit(tasks, 3))
+    print("First Fit:", implement_first_fit(tasks, 3, True))
+    print("Worst Fit:", implement_worst_fit(tasks, 3, True))
