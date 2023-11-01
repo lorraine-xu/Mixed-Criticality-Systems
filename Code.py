@@ -205,7 +205,13 @@ def implement_worst_fit():
     return partitioned_tasks
 
 def test_multiprocessor_schedulability(partitioned_tasks):
-    # return if task set passes/fails with each tested method
+    """
+    return the boolean of whether task set passes/fails with each tested method.
+    """
+    # for each core:
+        # check schedulability with AMC-rtb: implement_AMC_rtb()
+        # if any fails, it is not schedulable
+    # record if task set passes/fails with each tested method
 
 def conduct_acceptance_ratio_experiment():
     """
@@ -222,10 +228,8 @@ def conduct_acceptance_ratio_experiment():
             # sort the task set by priority with deadline monotonic priority assignment: assign_priority()
             # partition the task set with method 1: partition_task_set_method_1()
             # partition the task set with method 2: partition_task_set_method_2()
-            # for each core:
-                # check schedulability with AMC-rtb: implement_AMC_rtb()
-                # if any fails, it is not schedulable
-            # record if task set passes/fails with each tested method
+            # if (test_multiprocessor_schedulability(partitioned_tasks) == True)
+                # accumulate passing cases
         # calculate passing fraction for each method and store them in the output list
     # return acceptance ratio list
 
@@ -240,7 +244,15 @@ def make_plots():
     all four partitioning heuristics in the same figure.
     """
 
-def test_example_set():
+def test_schedulability_example():
     tasks = [Task("HI", 8, None, 4, 2), Task("LO", 20, None, 9, 3),
-                     Task("LO", 35, None, 7, 4), Task("HI", 49, None, 12, 10)]
+             Task("LO", 35, None, 7, 4), Task("HI", 49, None, 12, 10)]
     print(implement_AMC_rtb(tasks, True))
+
+def test_partitioning_example():
+    tasks = [Task("HI", 8, None, 4, 2), Task("LO", 20, None, 9, 3),
+             Task("LO", 35, None, 7, 4), Task("HI", 49, None, 12, 10),
+             Task("LO", 70, None, 14, 11), Task("HI", 17, None, 6, 3),
+             Task("LO", 56, None, 20, 17), Task("HI", 63, None, 15, 12)]
+    print("First Fit:", implement_first_fit(tasks, 3))
+    print("Worst Fit:", implement_worst_fit(tasks, 3))
