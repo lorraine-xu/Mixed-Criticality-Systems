@@ -33,7 +33,7 @@ def select_partitioning_heuristics():
     Output: four best partitioning heuristics
     """
 
-def generate_task_set():
+def generate_taskset():
     """
     Generate task utilizations for experiment. Available task generation algorithms are UUniFast
     and the new algorithm proposed by Rodriguez et. al.
@@ -42,13 +42,24 @@ def generate_task_set():
     period nHI (tMax and tMin)
     Output: a set of utilization values
     """
+    print("generate_taskset() -- yet to be implemented.")
+
+def assign_priority(tasks):
+    """
+    Sort the tasks in a taskset using deadline monotonic priority assignment. Shorter deadline
+    corresponds to higher priority, and longer deadline corresponds to lower priority.
+
+    Parameters: a random taskset of 1000 tasks
+    Output: sorted taskset
+    """
+    print("assign_priority() -- yet to be implemented.")
 
 def implement_AMC_rtb(tasks, verbose = False):
     """
     Use AMC_rtb as the schedulability test to evaluate the feasibility of an allocation
     before assigning any task to a processor.
 
-    Parameters: task set partitioned to a processor
+    Parameters: taskset partitioned to a processor
     Output: a boolean value of whether or not the allocation is successful
     """
     # create a list of r_lo values to be used in calculating r_star
@@ -224,34 +235,73 @@ def implement_worst_fit(tasks, n, verbose = False):
         return task_numbers
     return partitioned_tasks
 
-def test_multiprocessor_schedulability(partitioned_tasks):
+def test_multiprocessor_schedulability(partitioned_tasks, n):
     """
-    return the boolean of whether task set passes/fails with each tested method.
+    Return the boolean of whether task set passes/fails with each tested method.
+
+    Parameters: a list of lists of tasks that are scheduled to each processor, number of processors
+    Output: whether task set passes/fails with each tested method
     """
     # for each core:
+    for i in range(n):
+        # if a task cannot be allocated to any processor, the taskset fails automatically
+        if (partitioned_tasks is None):
+            return False
         # check schedulability with AMC-rtb: implement_AMC_rtb()
         # if any fails, it is not schedulable
+        if (implement_AMC_rtb(partitioned_tasks[i]) == False):
+            return False
     # record if task set passes/fails with each tested method
+    return True
 
 def conduct_acceptance_ratio_experiment():
     """
-    Calculate the acceptance ratio for all tasks as the fraction of task sets deemed 
+    Calculate the acceptance ratio for all tasks as the fraction of tasksets deemed 
     to be schedulable versus total normalized utilization.
 
     Parameters: a list of normalized utilization values
     Output: acceptance ratio for each utilization
     """
     # create an empty list to store acceptance ratios
+    acceptance_ratios_1 = []
+    acceptance_ratios_2 = []
+    NUM_OF_PROCESSORS = 3
+    NUM_OF_UTILIZATIONS = 20
+    ITERATION = 1000
     # for each utilization value:
-        # for i in range(1000):
-            # generate a task set of 80 tasks: generate_task_set()
-            # sort the task set by priority with deadline monotonic priority assignment: assign_priority()
-            # partition the task set with method 1: partition_task_set_method_1()
-            # partition the task set with method 2: partition_task_set_method_2()
-            # if (test_multiprocessor_schedulability(partitioned_tasks) == True)
+    for i in range(NUM_OF_UTILIZATIONS):
+        utilization = i * 0.05
+        passing_cases_1 = 0
+        passing_cases_2 = 0
+        for j in range(ITERATION):
+            # generate a taskset of 80 tasks: generate_taskset()
+            current_taskset = generate_taskset()
+            # sort the taskset by priority with deadline monotonic priority assignment: assign_priority()
+            sorted_tasks = assign_priority(current_taskset)
+            # test with example taskset
+            sorted_tasks = [Task("HI", 8, None, 4, 2), Task("LO", 20, None, 9, 3),
+             Task("LO", 35, None, 7, 4), Task("HI", 49, None, 12, 10),
+             Task("LO", 70, None, 14, 11), Task("HI", 17, None, 6, 3),
+             Task("LO", 56, None, 20, 17), Task("HI", 63, None, 15, 12)]
+            # partition the taskset with method 1: partition_task_set_method_1()
+            first_fit_output = implement_first_fit(sorted_tasks, NUM_OF_PROCESSORS)
+            # partition the taskset with method 2: partition_task_set_method_2()
+            worst_fit_output = implement_worst_fit(sorted_tasks, NUM_OF_PROCESSORS)
+            if (test_multiprocessor_schedulability(first_fit_output, NUM_OF_PROCESSORS) == True):
                 # accumulate passing cases
+                passing_cases_1 += 1
+            if (test_multiprocessor_schedulability(worst_fit_output, NUM_OF_PROCESSORS) == True):
+                # accumulate passing cases
+                passing_cases_2 += 1
         # calculate passing fraction for each method and store them in the output list
-    # return acceptance ratio list
+        acceptance_ratios_1.append(passing_cases_1 / ITERATION)
+        acceptance_ratios_2.append(passing_cases_2 / ITERATION)
+        # create a bigger list with the two acceptance_ratios as its elements
+        both_acceptance_ratios = []
+        both_acceptance_ratios.append(acceptance_ratios_1)
+        both_acceptance_ratios.append(acceptance_ratios_2)
+    # return acceptance ratios list
+    return both_acceptance_ratios
 
 def calculate_weighted_schedulability():
     """
@@ -263,6 +313,8 @@ def make_plots():
     Acceptance_ratio and/or weighted schedulability versus several factors, with
     all four partitioning heuristics in the same figure.
     """
+    print("make_plots() -- yet to be implemented.")
+    print(conduct_acceptance_ratio_experiment())
 
 def test_schedulability_example():
     tasks = [Task("HI", 8, None, 4, 2), Task("LO", 20, None, 9, 3),
