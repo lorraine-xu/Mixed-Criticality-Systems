@@ -176,7 +176,7 @@ def implement_first_fit(tasks, n, verbose = False):
                 return None
             # check if a task fits on a processor
             if (current_total_utilities[j] + tasks[i].utility <= 1):
-                partitioned == True
+                partitioned = True
                 current_total_utilities[j] += tasks[i].utility
                 partitioned_tasks[j].append(tasks[i])
                 if (verbose == True):
@@ -235,7 +235,7 @@ def implement_worst_fit(tasks, n, verbose = False):
         return task_numbers
     return partitioned_tasks
 
-def test_multiprocessor_schedulability(partitioned_tasks, n):
+def test_multiprocessor_schedulability(partitioned_tasks, n, verbose = False):
     """
     Return the boolean of whether task set passes/fails with each tested method.
 
@@ -246,15 +246,19 @@ def test_multiprocessor_schedulability(partitioned_tasks, n):
     for i in range(n):
         # if a task cannot be allocated to any processor, the taskset fails automatically
         if (partitioned_tasks is None):
+            if (verbose == True):
+                print("Failed to allocate a task.")
             return False
         # check schedulability with AMC-rtb: implement_AMC_rtb()
         # if any fails, it is not schedulable
         if (implement_AMC_rtb(partitioned_tasks[i]) == False):
+            if (verbose == True):
+                print("Schedulability failed on processor", i + 1, ".")
             return False
     # record if task set passes/fails with each tested method
     return True
 
-def conduct_acceptance_ratio_experiment():
+def conduct_acceptance_ratio_experiment(verbose = False):
     """
     Calculate the acceptance ratio for all tasks as the fraction of tasksets deemed 
     to be schedulable versus total normalized utilization.
@@ -262,46 +266,56 @@ def conduct_acceptance_ratio_experiment():
     Parameters: a list of normalized utilization values
     Output: acceptance ratio for each utilization
     """
-    # create an empty list to store acceptance ratios
-    acceptance_ratios_1 = []
-    acceptance_ratios_2 = []
     NUM_OF_PROCESSORS = 3
     NUM_OF_UTILIZATIONS = 20
     ITERATION = 1000
+    NUM_OF_METHODS = 2
+    if (verbose == True):
+        NUM_OF_UTILIZATIONS = 1
+        ITERATION = 1
+    # create an empty list to store acceptance ratios
+    acceptance_ratios = []
+    for i in range(NUM_OF_METHODS):
+        acceptance_ratios.append([])
     # for each utilization value:
     for i in range(NUM_OF_UTILIZATIONS):
         utilization = i * 0.05
-        passing_cases_1 = 0
-        passing_cases_2 = 0
+        passing_cases = []
+        for j in range(NUM_OF_METHODS):
+            passing_cases.append(0)
+            
         for j in range(ITERATION):
             # generate a taskset of 80 tasks: generate_taskset()
             current_taskset = generate_taskset()
             # sort the taskset by priority with deadline monotonic priority assignment: assign_priority()
             sorted_tasks = assign_priority(current_taskset)
-            # test with example taskset
-            sorted_tasks = [Task("HI", 8, None, 4, 2), Task("LO", 20, None, 9, 3),
-             Task("LO", 35, None, 7, 4), Task("HI", 49, None, 12, 10),
-             Task("LO", 70, None, 14, 11), Task("HI", 17, None, 6, 3),
-             Task("LO", 56, None, 20, 17), Task("HI", 63, None, 15, 12)]
+            if (verbose == True):
+                # test with example taskset
+                sorted_tasks = [Task("HI", 8, None, 4, 2), Task("LO", 20, None, 9, 3),
+                 Task("LO", 35, None, 7, 4), Task("HI", 49, None, 12, 10),
+                 Task("LO", 70, None, 14, 11), Task("HI", 17, None, 6, 3),
+                 Task("LO", 56, None, 20, 17), Task("HI", 63, None, 15, 12)]
             # partition the taskset with method 1: partition_task_set_method_1()
             first_fit_output = implement_first_fit(sorted_tasks, NUM_OF_PROCESSORS)
             # partition the taskset with method 2: partition_task_set_method_2()
             worst_fit_output = implement_worst_fit(sorted_tasks, NUM_OF_PROCESSORS)
             if (test_multiprocessor_schedulability(first_fit_output, NUM_OF_PROCESSORS) == True):
                 # accumulate passing cases
-                passing_cases_1 += 1
+                passing_cases[0] += 1
+            else:
+                if (verbose == True):
+                    test_multiprocessor_schedulability(first_fit_output, NUM_OF_PROCESSORS, True)
             if (test_multiprocessor_schedulability(worst_fit_output, NUM_OF_PROCESSORS) == True):
                 # accumulate passing cases
-                passing_cases_2 += 1
+                passing_cases[1] += 1
+            else:
+                if (verbose == True):
+                    test_multiprocessor_schedulability(worst_fit_output, NUM_OF_PROCESSORS, True)
         # calculate passing fraction for each method and store them in the output list
-        acceptance_ratios_1.append(passing_cases_1 / ITERATION)
-        acceptance_ratios_2.append(passing_cases_2 / ITERATION)
-        # create a bigger list with the two acceptance_ratios as its elements
-        both_acceptance_ratios = []
-        both_acceptance_ratios.append(acceptance_ratios_1)
-        both_acceptance_ratios.append(acceptance_ratios_2)
+        for j in range(NUM_OF_METHODS):
+            acceptance_ratios[j].append(passing_cases[j] / ITERATION)
     # return acceptance ratios list
-    return both_acceptance_ratios
+    return acceptance_ratios
 
 def calculate_weighted_schedulability():
     """
@@ -313,8 +327,8 @@ def make_plots():
     Acceptance_ratio and/or weighted schedulability versus several factors, with
     all four partitioning heuristics in the same figure.
     """
+    print(conduct_acceptance_ratio_experiment(True))
     print("make_plots() -- yet to be implemented.")
-    print(conduct_acceptance_ratio_experiment())
 
 def test_schedulability_example():
     tasks = [Task("HI", 8, None, 4, 2), Task("LO", 20, None, 9, 3),
