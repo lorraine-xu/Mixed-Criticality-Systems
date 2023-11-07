@@ -184,7 +184,48 @@ def implement_first_fit(tasks, n, verbose = False):
 
     if (verbose == True):
         return task_numbers
-    return partitioned_tasks       
+    return partitioned_tasks
+
+def implement_first_fit_schedulability(tasks, n, verbose = False):
+    """
+    Partition the taskset with first fit, which checks schedulability before allocating a task.
+
+    Parameters: a list of sorted tasks, number of processors
+    Output: a list of lists of tasks that are scheduled to each processor
+    """
+    # create a list of empty lists for generating output
+    partitioned_tasks = []
+    # for testing purpose
+    if (verbose == True):
+        task_numbers = []
+    for i in range(n):
+        partitioned_tasks.append([])
+        if (verbose == True):
+            task_numbers.append([])
+    
+    # loop through each task
+    for i in range(len(tasks)):
+        # create a boolean to determine if a task has been partitioned
+        partitioned = False
+        j = -1
+        while (partitioned == False):
+            j += 1
+            # fail to partition a task
+            if (j == n):
+                return None
+            # check if a task fits on a processor
+            partitioned_tasks[j].append(tasks[i])
+            if (implement_AMC_rtb(partitioned_tasks[j]) == True):
+                partitioned = True
+                if (verbose == True):
+                    task_numbers[j].append(i + 1)
+            # if doesn't fit, drop the new task
+            else:
+                partitioned_tasks[j].pop()
+
+    if (verbose == True):
+        return task_numbers
+    return partitioned_tasks
 
 def partition_task_set_method_2():
     """
@@ -227,6 +268,52 @@ def implement_worst_fit(tasks, n, verbose = False):
         if (assigned_processor == -1):
             return None
         partitioned_tasks[assigned_processor].append(tasks[i])
+        if (verbose == True):
+            task_numbers[assigned_processor].append(i + 1)
+        current_total_utilities[assigned_processor] += tasks[i].utility
+
+    if (verbose == True):
+        return task_numbers
+    return partitioned_tasks
+
+def implement_worst_fit_schedulability(tasks, n, verbose = False):
+    """
+    Partition the taskset with worst fit, which checks schedulability before allocating a task.
+
+    Parameters: a list of sorted tasks, number of processors
+    Output: a list of lists of tasks that are scheduled to each processor
+    """
+    # create a list of empty lists for generating output
+    partitioned_tasks = []
+    # create a dictionary that maps the current sum of utilities on each processor to the processor index
+    current_total_utilities = {}
+    # for testing purpose
+    if (verbose == True):
+        task_numbers = []
+    for i in range(n):
+        partitioned_tasks.append([])
+        if (verbose == True):
+            task_numbers.append([])
+        current_total_utilities[i] = 0
+        
+    # loop through each task
+    for i in range(len(tasks)):
+        # initiate the maximum unused capacity and assigned processor index
+        max_capacity = 0
+        assigned_processor = -1
+        for j in range(n):
+            partitioned_tasks[j].append(tasks[i])
+            if (1 - current_total_utilities[j] > max_capacity and implement_AMC_rtb(partitioned_tasks[j]) == True):
+                max_capacity = 1 - current_total_utilities[j]
+                assigned_processor = j
+                # if allocating the task to the new processor is more ideal, pop the task from the last processor
+                if (j > 0):
+                    partitioned_tasks[j - 1].pop()
+            else:
+                partitioned_tasks[j].pop()
+        # fail to partition a task
+        if (assigned_processor == -1):
+            return None
         if (verbose == True):
             task_numbers[assigned_processor].append(i + 1)
         current_total_utilities[assigned_processor] += tasks[i].utility
@@ -342,3 +429,11 @@ def test_partitioning_example():
              Task("LO", 56, None, 20, 17), Task("HI", 63, None, 15, 12)]
     print("First Fit:", implement_first_fit(tasks, 3, True))
     print("Worst Fit:", implement_worst_fit(tasks, 3, True))
+
+def test_partitioning_schedulability_example():
+    tasks = [Task("HI", 8, None, 4, 2), Task("LO", 20, None, 9, 3),
+             Task("LO", 35, None, 7, 4), Task("HI", 49, None, 12, 10),
+             Task("LO", 70, None, 14, 11), Task("HI", 17, None, 6, 3),
+             Task("LO", 56, None, 20, 17), Task("HI", 63, None, 15, 12)]
+    print("First Fit:", implement_first_fit_schedulability(tasks, 3, True))
+    print("Worst Fit:", implement_worst_fit_schedulability(tasks, 3, True))
