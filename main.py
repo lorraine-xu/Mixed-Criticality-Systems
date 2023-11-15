@@ -1,7 +1,7 @@
 """Schedulability test implementation and partitioning algorithm comparisons."""
 
 import math
-from Mixed-Criticality-Systems.taskset_generation import generate_taskset
+from task_generation import gen_mixed_criticality_taskset
 
 class Task(object):
     """
@@ -17,9 +17,9 @@ class Task(object):
         self.hi_exec_time  = hi_exec_time
         self.lo_exec_time = lo_exec_time
         if (criticality == "HI"):
-            self.utility = hi_exec_time / period
+            self.utilization = hi_exec_time / period
         else:
-            self.utility = lo_exec_time / period
+            self.utilization = lo_exec_time / period
             
 def select_partitioning_heuristics():
     """
@@ -165,9 +165,9 @@ def implement_first_fit(tasks, n, verbose = False):
             if (j == n):
                 return None
             # check if a task fits on a processor
-            if (current_total_utilities[j] + tasks[i].utility <= 1):
+            if (current_total_utilities[j] + tasks[i].utilization <= 1):
                 partitioned = True
-                current_total_utilities[j] += tasks[i].utility
+                current_total_utilities[j] += tasks[i].utilization
                 partitioned_tasks[j].append(tasks[i])
                 if (verbose == True):
                     task_numbers[j].append(i + 1)
@@ -251,7 +251,7 @@ def implement_worst_fit(tasks, n, verbose = False):
         max_capacity = 0
         assigned_processor = -1
         for j in range(n):
-            if (1 - current_total_utilities[j] > max_capacity and current_total_utilities[j] + tasks[i].utility <= 1):
+            if (1 - current_total_utilities[j] > max_capacity and current_total_utilities[j] + tasks[i].utilization <= 1):
                 max_capacity = 1 - current_total_utilities[j]
                 assigned_processor = j
         # fail to partition a task
@@ -260,7 +260,7 @@ def implement_worst_fit(tasks, n, verbose = False):
         partitioned_tasks[assigned_processor].append(tasks[i])
         if (verbose == True):
             task_numbers[assigned_processor].append(i + 1)
-        current_total_utilities[assigned_processor] += tasks[i].utility
+        current_total_utilities[assigned_processor] += tasks[i].utilization
 
     if (verbose == True):
         return task_numbers
@@ -347,6 +347,9 @@ def conduct_acceptance_ratio_experiment(verbose = False):
     NUM_OF_UTILIZATIONS = 20
     ITERATION = 1000
     NUM_OF_METHODS = 2
+    PERIOD_MIN = 10
+    PERIOD_MAX = 100
+    NUM_OF_TASKS = 80
     if (verbose == True):
         NUM_OF_UTILIZATIONS = 1
         ITERATION = 1
@@ -362,16 +365,17 @@ def conduct_acceptance_ratio_experiment(verbose = False):
             passing_cases.append(0)
             
         for j in range(ITERATION):
-            # generate a taskset of 80 tasks: generate_taskset()
-            current_taskset = generate_taskset()
-            # sort the taskset by priority with deadline monotonic priority assignment: assign_priority()
-            sorted_tasks = assign_priority(current_taskset)
             if (verbose == True):
                 # test with example taskset
                 sorted_tasks = [Task("HI", 8, None, 4, 2), Task("LO", 20, None, 9, 3),
                  Task("LO", 35, None, 7, 4), Task("HI", 49, None, 12, 10),
                  Task("LO", 70, None, 14, 11), Task("HI", 17, None, 6, 3),
                  Task("LO", 56, None, 20, 17), Task("HI", 63, None, 15, 12)]
+            else:
+                # generate a taskset of 80 tasks: generate_taskset()
+                current_taskset = gen_mixed_criticality_taskset(PERIOD_MIN, PERIOD_MAX, NUM_OF_TASKS, utilization)
+                # sort the taskset by priority with deadline monotonic priority assignment: assign_priority()
+                sorted_tasks = assign_priority(current_taskset)
             # partition the taskset with method 1: partition_task_set_method_1()
             first_fit_output = implement_first_fit(sorted_tasks, NUM_OF_PROCESSORS)
             # partition the taskset with method 2: partition_task_set_method_2()
@@ -427,3 +431,7 @@ def test_partitioning_schedulability_example():
              Task("LO", 56, None, 20, 17), Task("HI", 63, None, 15, 12)]
     print("First Fit:", implement_first_fit_schedulability(tasks, 3, True))
     print("Worst Fit:", implement_worst_fit_schedulability(tasks, 3, True))
+
+# gen_mixed_criticality_taskset(10, 100, 20, 0.05)
+# test_partitioning_example()
+conduct_acceptance_ratio_experiment(True)

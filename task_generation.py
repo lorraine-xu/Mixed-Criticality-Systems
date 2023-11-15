@@ -1,3 +1,6 @@
+import numpy
+import math
+
 def generate_taskset():
   """
   Generate task utilizations for experiment. Available task generation algorithms are UUniFast
@@ -9,98 +12,91 @@ def generate_taskset():
   """
   print("generate_taskset() -- yet to be implemented.")
 
-  # Reference:
-#   # wrapper for generating task sets for use within the schedcat library
-# # parameters:
-# #   periods:                one from NAMED_PERIODS (period definitions similar to those used in tasksets.py
-# #   period_distribution:    'unif' or 'logunif' for uniform or log-based distribution
-# #   tasks_n:                number of tasks to be generated
-# #   utilization:            target utilization of the task set to be generated
-# def gen_taskset(periods, period_distribution, tasks_n, utilization,
-#                 period_granularity=None, scale=ms2us, want_integral=True):
-#     if periods in NAMED_PERIODS:
-#         # Look up by name.
-#         (period_min, period_max) = NAMED_PERIODS[periods]
-#     else:
-#         # If unknown, then assume caller specified range manually.
-#         (period_min, period_max) = periods
-#     x = StaffordRandFixedSum(tasks_n, utilization, 1)
-#     if period_granularity is None:
-#         period_granularity = period_min
-#     periods = gen_periods(tasks_n, 1, period_min, period_max, period_granularity, period_distribution)
-#     ts = TaskSystem()
+def ms2us(ms):
+    return ms * 1000
 
-#     periods = numpy.maximum(periods[0], max(period_min, period_granularity))
+def StaffordRandFixedSum(n, u, nsets):
 
-#     C = scale(x[0] * periods)
+  #deal with n=1 case
+  if n == 1:
+      return numpy.tile(numpy.array([u]),[nsets,1])
 
-#
-#     taskset = numpy.c_[x[0], C / periods, periods, C]
-#     for t in range(numpy.size(taskset,0)):
-#         ts.append(SporadicTask(taskset[t][3], scale(taskset[t][2])))
+  k = numpy.floor(u)
+  s = u
+  step = 1 if k < (k-n+1) else -1
+  s1 = s - numpy.arange( k, (k-n+1)+step, step )
+  step = 1 if (k+n) < (k-n+1) else -1
+  s2 = numpy.arange( (k+n), (k+1)+step, step ) - s
 
-#     if want_integral:
-#         quantize_params(ts)
-#     return ts
+  tiny = numpy.finfo(float).tiny
+  huge = numpy.finfo(float).max
 
-## In our case, system utilization is high utilization
+  w = numpy.zeros((n, n+1))
+  w[0,1] = huge
+  t = numpy.zeros((n-1,n))
 
-# def gen_periods(n, nsets, min, max, gran, dist):
+  for i in numpy.arange(2, (n+1)):
+      tmp1 = w[i-2, numpy.arange(1,(i+1))] * s1[numpy.arange(0,i)]/float(i)
+      tmp2 = w[i-2, numpy.arange(0,i)] * s2[numpy.arange((n-i),n)]/float(i)
+      w[i-1, numpy.arange(1,(i+1))] = tmp1 + tmp2;
+      tmp3 = w[i-1, numpy.arange(1,(i+1))] + tiny;
+      tmp4 = numpy.array( (s2[numpy.arange((n-i),n)] > s1[numpy.arange(0,i)]) )
+      t[i-2, numpy.arange(0,i)] = (tmp2 / tmp3) * tmp4 + (1 - tmp1/tmp3) * (numpy.logical_not(tmp4))
 
-#     if dist == "logunif":
-#         periods = numpy.exp(numpy.random.uniform(low=numpy.log(min), high=numpy.log(max+gran), size=(nsets,n)))
-#     elif dist == "unif":
-#         periods = numpy.random.uniform(low=min, high=(max+gran), size=(nsets,n))
-#     elif type(dist) == list:
-#         # Interpret as set of pre-defined periods to choose from.
-#         assert nsets == 1
-#         # avoid numpy.random.choice() because we need to be compatible with 1.6.X
-#         periods = [random.choice(dist) for _ in xrange(n)]
-#         # wrap in numpy types
-#         periods = numpy.array(periods)
-#         periods.shape = (1, n)
-#     else:
-#         return None
+  m = nsets
+  x = numpy.zeros((n,m))
+  rt = numpy.random.uniform(size=(n-1,m)) #rand simplex type
+  rs = numpy.random.uniform(size=(n-1,m)) #rand position in simplex
+  s = numpy.repeat(s, m)
+  j = numpy.repeat(int(k+1), m)
+  sm = numpy.repeat(0, m)
+  pr = numpy.repeat(1, m)
 
-#     periods = numpy.floor(periods / gran) * gran
+  for i in numpy.arange(n-1,0,-1): #iterate through dimensions
+      e = ( rt[(n-i)-1,...] <= t[i-1,j-1] ) #decide which direction to move in this dimension (1 or 0)
+      sx = rs[(n-i)-1,...] ** (1/float(i)) #next simplex coord
+      sm = sm + (1-sx) * pr * s/float(i+1)
+      pr = sx * pr
+      x[(n-i)-1,...] = sm + pr * e
+      s = s - e
+      j = j - e #change transition table column if required
 
-#     return periods
+  x[n-1,...] = sm + pr * s
 
+  #iterated in fixed dimension order but needs to be randomised
+  #permute x row order within each column
+  for i in range(0,m):
+      x[...,i] = x[numpy.random.permutation(n),i]
 
-# def tasks(self, max_tasks=None, max_util=None, squeeze=False,
-#               time_conversion=trunc):
-#       """Generate a sequence of tasks until either max_tasks is reached
-#       or max_util is reached. If max_util would be exceeded and squeeze is
-#       true, then the last-generated task's utilization is scaled to exactly
-#       match max_util. Otherwise, the last-generated task is discarded.
-#       time_conversion is used to convert the generated (non-integral) values
-#       into integral task parameters.
-#       """
-#       count = 0
-#       usum  = 0
-#       while ((max_tasks is None or count < max_tasks) and
-#              (max_util is None  or usum  < max_util)):
-#           period   = self.period()
-#           util     = self.util()
-#           cost     = period * util
-#           deadline = self.deadline(cost, period)
-#           # scale as required
-#           period   = max(1,    int(time_conversion(period)))
-#           cost     = max(1,    int(time_conversion(cost)))
-#           deadline = max(1, int(time_conversion(deadline)))
-#           util = cost / period
-#           count  += 1
-#           usum   += util
-#           if max_util and usum > max_util:
-#               if squeeze:
-#                   # make last task fit exactly
-#                   util -= (usum - max_util)
-#                   cost = trunc(period * util)
-#               else:
-#                   break
-#           yield ts.SporadicTask(cost, period, deadline)
+  return numpy.transpose(x)
 
-## In our case, we also need to assign a criticality level value to a task in the tasks() function,
-## based on the ratio of HI tasks.
+def gen_periods(n, nsets, min, max):
+  periods = numpy.exp(numpy.random.uniform(low=numpy.log(min), high=numpy.log(max), size=(nsets,n)))
+  return periods
 
-## Need another function to make HI-LO couples making sure that for each HI task the HI utilization is higher than the LO utilization.
+def quantize_params(taskset):
+  """After applying overheads, use this function to make
+      task parameters integral again."""
+
+  for t in taskset:
+      t.hi_exec_time     = int(math.ceil(t.hi_exec_time))
+      t.period   = int(math.floor(t.period))
+      t.deadline = int(math.floor(t.deadline))
+
+  return taskset
+
+def gen_mixed_criticality_taskset(period_min, period_max, num_of_tasks, utilization, scale=ms2us):
+  from main import Task
+  x = StaffordRandFixedSum(num_of_tasks, utilization, 1)
+  periods = gen_periods(num_of_tasks, 1, period_min, period_max)
+  ts = []
+
+  C = scale(x[0] * periods)
+
+  taskset = numpy.c_[x[0], C[0] / periods[0], periods[0], C[0]]
+  for t in range(numpy.size(taskset,0)):
+      ts.append(Task("HI", scale(taskset[t][2]), None, taskset[t][3], 0.0003487754111160126))
+      print(Task("HI", scale(taskset[t][2]), None, taskset[t][3], 0.0003487754111160126).utilization)
+
+  quantize_params(ts)
+  return ts
