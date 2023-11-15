@@ -2,6 +2,7 @@
 
 import math
 from task_generation import gen_mixed_criticality_taskset
+import csv
 
 class Task(object):
     """
@@ -368,9 +369,9 @@ def conduct_acceptance_ratio_experiment(verbose = False):
             if (verbose == True):
                 # test with example taskset
                 sorted_tasks = [Task("HI", 8, None, 4, 2), Task("LO", 20, None, 9, 3),
-                 Task("LO", 35, None, 7, 4), Task("HI", 49, None, 12, 10),
-                 Task("LO", 70, None, 14, 11), Task("HI", 17, None, 6, 3),
-                 Task("LO", 56, None, 20, 17), Task("HI", 63, None, 15, 12)]
+                    Task("LO", 35, None, 7, 4), Task("HI", 49, None, 12, 10),
+                    Task("LO", 70, None, 14, 11), Task("HI", 17, None, 6, 3),
+                    Task("LO", 56, None, 20, 17), Task("HI", 63, None, 15, 12)]
             else:
                 # generate a taskset of 80 tasks: generate_taskset()
                 current_taskset = gen_mixed_criticality_taskset(PERIOD_MIN, PERIOD_MAX, NUM_OF_TASKS, utilization)
@@ -432,6 +433,45 @@ def test_partitioning_schedulability_example():
     print("First Fit:", implement_first_fit_schedulability(tasks, 3, True))
     print("Worst Fit:", implement_worst_fit_schedulability(tasks, 3, True))
 
+def write_csv_file_example():
+    with open('output.csv', 'w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["Sys-util", "Alg-A", "Alg-B"])
+
+        NUM_OF_PROCESSORS = 3
+        NUM_OF_UTILIZATIONS = 20
+        ITERATION = 1000
+        NUM_OF_METHODS = 2
+        NUM_OF_TASKS = 80
+        sorted_tasks = [Task("HI", 8, None, 4, 2), Task("LO", 20, None, 9, 3),
+                        Task("LO", 35, None, 7, 4), Task("HI", 49, None, 12, 10),
+                        Task("LO", 70, None, 14, 11), Task("HI", 17, None, 6, 3),
+                        Task("LO", 56, None, 20, 17), Task("HI", 63, None, 15, 12)]
+        # for each utilization value:
+        for i in range(NUM_OF_UTILIZATIONS):
+            next_row = []
+            utilization = i * 0.05
+            next_row.append(utilization)
+            passing_cases = []
+            for j in range(NUM_OF_METHODS):
+                passing_cases.append(0)
+                
+            for j in range(ITERATION):
+                # partition the taskset with method 1: partition_task_set_method_1()
+                first_fit_output = implement_first_fit(sorted_tasks, NUM_OF_PROCESSORS)
+                # partition the taskset with method 2: partition_task_set_method_2()
+                worst_fit_output = implement_worst_fit(sorted_tasks, NUM_OF_PROCESSORS)
+                if (test_multiprocessor_schedulability(first_fit_output, NUM_OF_PROCESSORS) == True):
+                    # accumulate passing cases
+                    passing_cases[0] += 1
+                if (test_multiprocessor_schedulability(worst_fit_output, NUM_OF_PROCESSORS) == True):
+                    # accumulate passing cases
+                    passing_cases[1] += 1
+            # calculate passing fraction for each method and store them in the output list
+            for j in range(NUM_OF_METHODS):
+                next_row.append(passing_cases[j] / ITERATION)
+            writer.writerow(next_row)
+
 # gen_mixed_criticality_taskset(10, 100, 20, 0.05)
 # test_partitioning_example()
-conduct_acceptance_ratio_experiment(True)
+write_csv_file_example()
