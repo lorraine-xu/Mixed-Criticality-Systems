@@ -351,6 +351,7 @@ def conduct_acceptance_ratio_experiment(verbose = False):
     PERIOD_MIN = 10
     PERIOD_MAX = 100
     NUM_OF_TASKS = 80
+    HI_PROBABILITY = 0.5
     if (verbose == True):
         NUM_OF_UTILIZATIONS = 1
         ITERATION = 1
@@ -374,7 +375,7 @@ def conduct_acceptance_ratio_experiment(verbose = False):
                     Task("LO", 56, None, 20, 17), Task("HI", 63, None, 15, 12)]
             else:
                 # generate a taskset of 80 tasks: generate_taskset()
-                current_taskset = gen_mixed_criticality_taskset(PERIOD_MIN, PERIOD_MAX, NUM_OF_TASKS, utilization)
+                current_taskset = gen_mixed_criticality_taskset(PERIOD_MIN, PERIOD_MAX, NUM_OF_TASKS, utilization, HI_PROBABILITY)
                 # sort the taskset by priority with deadline monotonic priority assignment: assign_priority()
                 sorted_tasks = assign_priority(current_taskset)
             # partition the taskset with method 1: partition_task_set_method_1()
@@ -436,7 +437,7 @@ def test_partitioning_schedulability_example():
 def write_csv_file_example():
     with open('output.csv', 'w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(["Sys-util", "Alg-A", "Alg-B"])
+        writer.writerow(["sys_util", "Alg_A", "Alg_B"])
 
         NUM_OF_PROCESSORS = 3
         NUM_OF_UTILIZATIONS = 20

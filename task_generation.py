@@ -1,5 +1,6 @@
 import numpy
 import math
+import random
 
 def generate_taskset():
   """
@@ -85,7 +86,7 @@ def quantize_params(taskset):
 
   return taskset
 
-def gen_mixed_criticality_taskset(period_min, period_max, num_of_tasks, utilization, scale=ms2us):
+def gen_mixed_criticality_taskset(period_min, period_max, num_of_tasks, utilization, hi_probability, scale=ms2us):
   from main import Task
   x = StaffordRandFixedSum(num_of_tasks, utilization, 1)
   periods = gen_periods(num_of_tasks, 1, period_min, period_max)
@@ -94,9 +95,21 @@ def gen_mixed_criticality_taskset(period_min, period_max, num_of_tasks, utilizat
   C = scale(x[0] * periods)
 
   taskset = numpy.c_[x[0], C[0] / periods[0], periods[0], C[0]]
+  criticality_levels = gen_criticality_level(hi_probability, num_of_tasks)
   for t in range(numpy.size(taskset,0)):
-      ts.append(Task("HI", scale(taskset[t][2]), None, taskset[t][3], 0.0003487754111160126))
-      print(Task("HI", scale(taskset[t][2]), None, taskset[t][3], 0.0003487754111160126).utilization)
+      ts.append(Task(criticality_levels[t], scale(taskset[t][2]), None, taskset[t][3], 0.0003487754111160126))
+      print(Task(criticality_levels[t], scale(taskset[t][2]), None, taskset[t][3], 0.0003487754111160126).utilization)
 
   quantize_params(ts)
   return ts
+
+def gen_criticality_level(hi_probability, num_of_tasks):
+  criticality_levels = []
+  for i in range(num_of_tasks):
+    if random.random() < hi_probability:
+      criticality_levels.append("HI")
+    else:
+      criticality_levels.append("LO")
+  return criticality_levels
+
+print(gen_criticality_level(0.2, 10))
