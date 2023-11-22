@@ -17,10 +17,12 @@ class Task(object):
         self.deadline = deadline
         self.hi_exec_time  = hi_exec_time
         self.lo_exec_time = lo_exec_time
-        if (criticality == "HI"):
-            self.utilization = hi_exec_time / period
+        self.hi_utilization = hi_exec_time / period
+        self.lo_utilization = lo_exec_time / period
+        if (self.criticality == "HI"):
+            self.utilization = self.hi_utilization
         else:
-            self.utilization = lo_exec_time / period
+            self.utilization = self.lo_utilization
             
 def select_partitioning_heuristics():
     """
@@ -361,7 +363,8 @@ def conduct_acceptance_ratio_experiment(verbose = False):
         acceptance_ratios.append([])
     # for each utilization value:
     for i in range(NUM_OF_UTILIZATIONS):
-        utilization = i * 0.05
+        lo_utilization = i * NUM_OF_PROCESSORS / NUM_OF_UTILIZATIONS
+        hi_utilization = lo_utilization * 2.0
         passing_cases = []
         for j in range(NUM_OF_METHODS):
             passing_cases.append(0)
@@ -375,28 +378,28 @@ def conduct_acceptance_ratio_experiment(verbose = False):
                     Task("LO", 56, None, 20, 17), Task("HI", 63, None, 15, 12)]
             else:
                 # generate a taskset of 80 tasks: generate_taskset()
-                current_taskset = gen_mixed_criticality_taskset(PERIOD_MIN, PERIOD_MAX, NUM_OF_TASKS, utilization, HI_PROBABILITY)
+                current_taskset = gen_mixed_criticality_taskset(PERIOD_MIN, PERIOD_MAX, NUM_OF_TASKS, hi_utilization, lo_utilization, HI_PROBABILITY)
                 # sort the taskset by priority with deadline monotonic priority assignment: assign_priority()
                 sorted_tasks = assign_priority(current_taskset)
-            # partition the taskset with method 1: partition_task_set_method_1()
-            first_fit_output = implement_first_fit(sorted_tasks, NUM_OF_PROCESSORS)
-            # partition the taskset with method 2: partition_task_set_method_2()
-            worst_fit_output = implement_worst_fit(sorted_tasks, NUM_OF_PROCESSORS)
-            if (test_multiprocessor_schedulability(first_fit_output, NUM_OF_PROCESSORS) == True):
-                # accumulate passing cases
-                passing_cases[0] += 1
-            else:
-                if (verbose == True):
-                    test_multiprocessor_schedulability(first_fit_output, NUM_OF_PROCESSORS, True)
-            if (test_multiprocessor_schedulability(worst_fit_output, NUM_OF_PROCESSORS) == True):
-                # accumulate passing cases
-                passing_cases[1] += 1
-            else:
-                if (verbose == True):
-                    test_multiprocessor_schedulability(worst_fit_output, NUM_OF_PROCESSORS, True)
-        # calculate passing fraction for each method and store them in the output list
-        for j in range(NUM_OF_METHODS):
-            acceptance_ratios[j].append(passing_cases[j] / ITERATION)
+                # partition the taskset with method 1: partition_task_set_method_1()
+                first_fit_output = implement_first_fit(sorted_tasks, NUM_OF_PROCESSORS)
+                # partition the taskset with method 2: partition_task_set_method_2()
+                worst_fit_output = implement_worst_fit(sorted_tasks, NUM_OF_PROCESSORS)
+                if (test_multiprocessor_schedulability(first_fit_output, NUM_OF_PROCESSORS) == True):
+                    # accumulate passing cases
+                    passing_cases[0] += 1
+                else:
+                    if (verbose == True):
+                        test_multiprocessor_schedulability(first_fit_output, NUM_OF_PROCESSORS, True)
+                if (test_multiprocessor_schedulability(worst_fit_output, NUM_OF_PROCESSORS) == True):
+                    # accumulate passing cases
+                    passing_cases[1] += 1
+                else:
+                    if (verbose == True):
+                        test_multiprocessor_schedulability(worst_fit_output, NUM_OF_PROCESSORS, True)
+            # calculate passing fraction for each method and store them in the output list
+            for j in range(NUM_OF_METHODS):
+                acceptance_ratios[j].append(passing_cases[j] / ITERATION)
     # return acceptance ratios list
     return acceptance_ratios
 
@@ -425,6 +428,8 @@ def test_partitioning_example():
              Task("LO", 56, None, 20, 17), Task("HI", 63, None, 15, 12)]
     print("First Fit:", implement_first_fit(tasks, 3, True))
     print("Worst Fit:", implement_worst_fit(tasks, 3, True))
+    print("First Fit:", test_multiprocessor_schedulability(implement_first_fit(tasks, 3), 3))
+    print("Worst Fit:", test_multiprocessor_schedulability(implement_first_fit(tasks, 3), 3))
 
 def test_partitioning_schedulability_example():
     tasks = [Task("HI", 8, None, 4, 2), Task("LO", 20, None, 9, 3),
@@ -443,7 +448,6 @@ def write_csv_file_example():
         NUM_OF_UTILIZATIONS = 20
         ITERATION = 1000
         NUM_OF_METHODS = 2
-        NUM_OF_TASKS = 80
         sorted_tasks = [Task("HI", 8, None, 4, 2), Task("LO", 20, None, 9, 3),
                         Task("LO", 35, None, 7, 4), Task("HI", 49, None, 12, 10),
                         Task("LO", 70, None, 14, 11), Task("HI", 17, None, 6, 3),
@@ -451,8 +455,8 @@ def write_csv_file_example():
         # for each utilization value:
         for i in range(NUM_OF_UTILIZATIONS):
             next_row = []
-            utilization = i * 0.05
-            next_row.append(utilization)
+            lo_utilization = i * NUM_OF_PROCESSORS / NUM_OF_UTILIZATIONS
+            next_row.append(lo_utilization)
             passing_cases = []
             for j in range(NUM_OF_METHODS):
                 passing_cases.append(0)
@@ -473,6 +477,62 @@ def write_csv_file_example():
                 next_row.append(passing_cases[j] / ITERATION)
             writer.writerow(next_row)
 
-# gen_mixed_criticality_taskset(10, 100, 20, 0.05)
+def write_csv_file_utilization(verbose = False):
+    """
+    Calculate the acceptance ratio for all tasks as the fraction of tasksets deemed 
+    to be schedulable versus total normalized utilization.
+
+    Parameters: a list of normalized utilization values
+    Output: acceptance ratio for each utilization
+    """
+    with open('real_output.csv', 'w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(["sys_util", "Alg_A", "Alg_B"])
+
+        NUM_OF_PROCESSORS = 3
+        NUM_OF_UTILIZATIONS = 20
+        ITERATION = 50
+        NUM_OF_METHODS = 2
+        PERIOD_MIN = 10
+        PERIOD_MAX = 100
+        NUM_OF_TASKS = 80
+        HI_PROBABILITY = 0.5
+        if (verbose == True):
+            NUM_OF_UTILIZATIONS = 1
+            ITERATION = 1
+        # create an empty list to store acceptance ratios
+        acceptance_ratios = []
+        for i in range(NUM_OF_METHODS):
+            acceptance_ratios.append([])
+        # for each utilization value:
+        for i in range(NUM_OF_UTILIZATIONS):
+            next_row = []
+            lo_utilization = i * NUM_OF_PROCESSORS / NUM_OF_UTILIZATIONS
+            next_row.append(lo_utilization)
+            hi_utilization = lo_utilization * 2.0
+            passing_cases = []
+            for j in range(NUM_OF_METHODS):
+                passing_cases.append(0)
+                
+            for j in range(ITERATION):
+                # generate a taskset of 80 tasks: generate_taskset()
+                current_taskset = gen_mixed_criticality_taskset(PERIOD_MIN, PERIOD_MAX, NUM_OF_TASKS, hi_utilization, lo_utilization, HI_PROBABILITY)
+                # partition the taskset with method 1: partition_task_set_method_1()
+                first_fit_output = implement_first_fit(current_taskset, NUM_OF_PROCESSORS)
+                # partition the taskset with method 2: partition_task_set_method_2()
+                worst_fit_output = implement_worst_fit(current_taskset, NUM_OF_PROCESSORS)
+                if (test_multiprocessor_schedulability(first_fit_output, NUM_OF_PROCESSORS) == True):
+                    # accumulate passing cases
+                    passing_cases[0] += 1
+                if (test_multiprocessor_schedulability(worst_fit_output, NUM_OF_PROCESSORS) == True):
+                    # accumulate passing cases
+                    passing_cases[1] += 1
+            # calculate passing fraction for each method and store them in the output list
+            for j in range(NUM_OF_METHODS):
+                next_row.append(passing_cases[j] / ITERATION)
+            writer.writerow(next_row)
+
+gen_mixed_criticality_taskset(10, 100, 20, 0.06, 0.03, 0.5)
 # test_partitioning_example()
-write_csv_file_example()
+# write_csv_file_example()
+# write_csv_file_utilization()

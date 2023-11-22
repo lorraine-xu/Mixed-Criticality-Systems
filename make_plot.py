@@ -26,8 +26,8 @@ def create_example_csv():
         writer.writerow([0.8, 0, 0])
 
 def main():
-    create_example_csv()
-    file = 'output_demo.csv'
+    # create_example_csv()
+    file = 'real_output.csv'
     f = open(file, 'r')
     d = DictReader(f)
     data = defaultdict(list)
